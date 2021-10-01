@@ -2,4 +2,9 @@
 
 public class Work
 {
+    public Guid Id
+    {
+        get;
+        set;
+    }
 }
