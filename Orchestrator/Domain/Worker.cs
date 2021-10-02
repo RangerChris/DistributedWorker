@@ -3,14 +3,18 @@ using DistributedWorker.Core.Exception;
 
 namespace DistributedWorker.Core.Domain;
 
+/// <summary>
+///     Keeps track of the <see cref="Work" />
+/// </summary>
 public class Worker
 {
-    private Work? _work;
-
     public Worker()
     {
         Status = WorkerStatus.Ready;
+        Id = Guid.NewGuid();
     }
+
+    public Work Work { get; set; }
 
     public WorkerStatus Status
     {
@@ -21,30 +25,25 @@ public class Worker
     public Guid Id
     {
         get;
-        set;
     }
 
     public bool SetWork(Work work)
     {
         Guard.Against.Null(work, nameof(work));
 
-        _work = work;
+        Work = work;
         return true;
     }
 
     public void StartWork()
     {
-        if (_work == null)
+        if (Work == null)
         {
             throw new WorkException($"No work assigned to worker {Id}");
         }
 
-        DoWork();
-    }
-
-    private void DoWork()
-    {
         Status = WorkerStatus.Working;
+        Work.DoWork();
     }
 
     public void StopWork()

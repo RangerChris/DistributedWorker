@@ -10,27 +10,23 @@ namespace DistributedWorker.Core.Tests;
 
 public class OrchestratorRequirements
 {
-    private readonly Faker<Orchestrator> _fakeOrchestrator = new();
-    private readonly Faker<Work> _fakeWork = new();
-    private readonly Faker<Worker> _fakeWorker = new();
+    private readonly Orchestrator _orchestrator;
+    private readonly Work _work;
+    private readonly Worker _worker;
 
     public OrchestratorRequirements()
     {
-        _fakeOrchestrator.RuleFor(p => p.Id, p => Guid.NewGuid());
-        _fakeWorker.RuleFor(p => p.Id, p => Guid.NewGuid());
-        _fakeWork.RuleFor(p => p.Id, p => Guid.NewGuid());
+        _orchestrator = new Faker<Orchestrator>().RuleFor(p => p.Id, Guid.NewGuid()).Generate();
+        _work = new Faker<Work>().RuleFor(p => p.Id, Guid.NewGuid()).RuleFor(p => p.Name, $"Work-{_orchestrator.Workers.Count + 1}").Generate();
+        _worker = new Faker<Worker>().RuleFor(p => p.Id, Guid.NewGuid()).Generate();
     }
 
     [Fact]
     public void OrchestratorCanAssignWorkToWorker()
     {
-        var orchestrator = _fakeOrchestrator.Generate();
-        var worker = _fakeWorker.Generate();
-        var work = _fakeWork.Generate();
-
-        orchestrator.Workers.Add(worker);
-        var assignmentSuccess = orchestrator.AssignWorkToWorker(worker, work);
-        assignmentSuccess.Should().BeTrue();
+        _orchestrator.Workers.Add(_worker);
+        _orchestrator.AssignWorkToWorker(_worker, _work);
+        _worker.Work.Should().BeSameAs(_work);
     }
 
     [Theory]
@@ -40,53 +36,64 @@ public class OrchestratorRequirements
     [InlineData(62)]
     public void OrchestratorAddRangeOfWorkers(int numberOfWorkers)
     {
-        var orchestrator = _fakeOrchestrator.Generate();
-        var workerList = _fakeWorker.Generate(numberOfWorkers);
-        orchestrator.Workers.AddRange(workerList);
-        orchestrator.Workers.Should().HaveCount(numberOfWorkers);
+        var fakeWorker = new Faker<Worker>().RuleFor(p => p.Id, Guid.NewGuid());
+        var workerList = fakeWorker.Generate(numberOfWorkers);
+        _orchestrator.Workers.AddRange(workerList);
+        _orchestrator.Workers.Should().HaveCount(numberOfWorkers);
     }
 
     [Fact]
     public void OrchestratorAddRemoveGetWorker()
     {
-        var orchestrator = _fakeOrchestrator.Generate();
-        var worker = _fakeWorker.Generate();
-        orchestrator.Workers.Add(worker);
+        _orchestrator.Workers.Add(_worker);
 
-        orchestrator.Workers.Should().HaveCount(1);
+        _orchestrator.Workers.Should().HaveCount(1);
 
-        var retrievedWorker = orchestrator.Workers.First();
-        retrievedWorker.Should().BeSameAs(worker);
+        var retrievedWorker = _orchestrator.Workers.First();
+        retrievedWorker.Should().BeSameAs(_worker);
 
-        orchestrator.Workers.Remove(retrievedWorker);
-        orchestrator.Workers.Should().BeEmpty();
+        _orchestrator.Workers.Remove(retrievedWorker);
+        _orchestrator.Workers.Should().BeEmpty();
     }
 
     [Fact]
     public void OrchestratorCanStartStopWorker()
     {
-        var orchestrator = _fakeOrchestrator.Generate();
-        var worker = _fakeWorker.Generate();
-        var work = _fakeWork.Generate();
-
-        Action action = () => orchestrator.StartWork(worker);
+        Action action = () => _orchestrator.StartWork(_worker);
         // Throw exception because the worker is not added to list of workers known by orchestrator
         action.Should().Throw<WorkerException>();
 
-        orchestrator.Workers.Add(worker);
+        _orchestrator.Workers.Add(_worker);
 
-        action = () => orchestrator.StartWork(worker);
+        action = () => _orchestrator.StartWork(_worker);
         // Throw exception because the worker have not had any work assigned to it
         action.Should().Throw<WorkException>();
 
-        var result = orchestrator.AssignWorkToWorker(worker, work);
-        result.Should().BeTrue();
+        _orchestrator.AssignWorkToWorker(_worker, _work);
+        _worker.Work.Should().BeSameAs(_work);
 
-        orchestrator.StartWork(worker);
+        _orchestrator.StartWork(_worker);
 
-        worker.Status.Should().Be(WorkerStatus.Working);
+        _worker.Status.Should().Be(WorkerStatus.Working);
 
-        orchestrator.StopWork(worker);
-        worker.Status.Should().Be(WorkerStatus.Stopped);
+        _orchestrator.StopWork(_worker);
+        _worker.Status.Should().Be(WorkerStatus.Stopped);
+    }
+
+    [Fact]
+    public void WorkerCanSetWorkTimeButOnlyInFuture()
+    {
+        _orchestrator.Workers.Add(_worker);
+        Action action = () => _work.TimeLimit = DateTime.Now.AddHours(-1);
+        action.Should().Throw<WorkException>();
+
+        var timeLimit = DateTime.Now.AddHours(1);
+        _work.TimeLimit = timeLimit;
+
+        _orchestrator.AssignWorkToWorker(_worker, _work);
+        _orchestrator.StartWork(_worker);
+
+        _work.TimeLimit.Should().Be(timeLimit);
+        _work.WorkStartedAt.Should().BeCloseTo(DateTime.Now, TimeSpan.FromSeconds(5));
     }
 }

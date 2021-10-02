@@ -3,6 +3,9 @@ using DistributedWorker.Core.Exception;
 
 namespace DistributedWorker.Core.Domain;
 
+/// <summary>
+///     Keeps track of <see cref="Workers" /> and can issue <see cref="Work" /> to the <see cref="Worker" />
+/// </summary>
 public class Orchestrator
 {
     public Orchestrator()
@@ -21,14 +24,13 @@ public class Orchestrator
         set;
     }
 
-    public bool AssignWorkToWorker(Worker worker, Work work)
+    public void AssignWorkToWorker(Worker worker, Work work)
     {
         Guard.Against.Null(worker, nameof(worker));
         CheckWorkerIsKnownByOrchestrator(worker);
         Guard.Against.Null(work, nameof(work));
 
-        var result = worker.SetWork(work);
-        return result;
+        worker.SetWork(work);
     }
 
     public void StartWork(Worker worker)
