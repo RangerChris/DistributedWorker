@@ -16,10 +16,10 @@ public class Worker
 
     public Work Work { get; set; }
 
-    public WorkerStatus Status
+    internal WorkerStatus Status
     {
         get;
-        private set;
+        set;
     }
 
     public Guid Id

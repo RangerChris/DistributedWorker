@@ -41,6 +41,14 @@ public class Orchestrator
         worker.StartWork();
     }
 
+    public WorkerStatus GetStatus(Worker worker)
+    {
+        Guard.Against.Null(worker, nameof(worker));
+        CheckWorkerIsKnownByOrchestrator(worker);
+
+        return worker.Status;
+    }
+
     private void CheckWorkerIsKnownByOrchestrator(Worker worker)
     {
         if (!Workers.Contains(worker))

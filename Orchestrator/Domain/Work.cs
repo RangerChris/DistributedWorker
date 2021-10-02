@@ -9,7 +9,7 @@ public class Work
 {
     private DateTime _timeLimit;
 
-    public Guid Id { get; }
+    public Guid Id { get; set; }
 
     public DateTime TimeLimit
     {
