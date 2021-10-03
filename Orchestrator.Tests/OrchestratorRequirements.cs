@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Bogus;
 using DistributedWorker.Core.Domain;
 using DistributedWorker.Core.Exception;
@@ -41,14 +42,17 @@ public class OrchestratorRequirements
         _worker.Work.Should()
                .BeSameAs(_work);
 
-        _worker.Work.WorkStartedAt.Should()
-               .Be(DateTime.MinValue);
-        _worker.Work.TimeLimit.Should()
-               .Be(DateTime.MinValue);
-        _worker.Work.Id.Should()
-               .NotBeEmpty();
-        _worker.Work.Name.Should()
-               .Be("Work-1");
+        if (_worker.Work != null)
+        {
+            _worker.Work.WorkStartedAt.Should()
+                   .Be(DateTime.MinValue);
+            _worker.Work.TimeLimit.Should()
+                   .Be(DateTime.MinValue);
+            _worker.Work.Id.Should()
+                   .NotBeEmpty();
+            _worker.Work.Name.Should()
+                   .Be("Work-1");
+        }
     }
 
     [Theory]
@@ -83,38 +87,49 @@ public class OrchestratorRequirements
     }
 
     [Fact]
-    public void OrchestratorCanStartStopWorker()
+    public async Task OrchestratorCanStartStopWorker()
     {
-        Action action = () => _orchestrator.StartWork(_worker);
+        Func<Task> asyncCall = async () =>
+        {
+            await _orchestrator.StartWork(_worker);
+        };
         // Throw exception because the worker is not added to list of workers known by orchestrator
-        action.Should()
-              .Throw<WorkerException>();
+        await asyncCall.Should()
+                       .ThrowAsync<WorkerException>();
 
         _orchestrator.Workers.Add(_worker);
 
-        action = () => _orchestrator.StartWork(_worker);
+        asyncCall = async () =>
+        {
+            await _orchestrator.StartWork(_worker);
+        };
+
         // Throw exception because the worker have not had any work assigned to it
-        action.Should()
-              .Throw<WorkException>();
+        await asyncCall.Should()
+                       .ThrowAsync<WorkException>();
 
         _orchestrator.AssignWorkToWorker(_worker, _work);
         _worker.Work.Should()
                .BeSameAs(_work);
 
-        _orchestrator.StartWork(_worker);
+        _work.WorkDuration = 5;
+        _work.TimeLimit = DateTime.Now.AddSeconds(10);
+
+        _orchestrator.StartWork(_worker)
+                     .FireAndForget();
 
         _orchestrator.GetStatus(_worker)
                      .Should()
-                     .Be(WorkerStatus.Working);
+                     .Be(WorkStatus.Working);
 
         _orchestrator.StopWork(_worker);
         _orchestrator.GetStatus(_worker)
                      .Should()
-                     .Be(WorkerStatus.Stopped);
+                     .Be(WorkStatus.Stopped);
     }
 
     [Fact]
-    public void WorkerCanSetWorkTimeButOnlyInFuture()
+    public async Task WorkerCanSetWorkTimeButOnlyInFuture()
     {
         _orchestrator.Workers.Add(_worker);
         Action action = () => _work.TimeLimit = DateTime.Now.AddHours(-1);
@@ -125,7 +140,7 @@ public class OrchestratorRequirements
         _work.TimeLimit = timeLimit;
 
         _orchestrator.AssignWorkToWorker(_worker, _work);
-        _orchestrator.StartWork(_worker);
+        await _orchestrator.StartWork(_worker);
 
         _work.TimeLimit.Should()
              .Be(timeLimit);

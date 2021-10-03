@@ -4,23 +4,17 @@ using DistributedWorker.Core.Exception;
 namespace DistributedWorker.Core.Domain;
 
 /// <summary>
-///     Keeps track of the <see cref="Work" />
+///     Keeps track of the <see cref="Work" /> to be done
+///     Can only work on one thing at a time, but can spawn many <see cref="Worker" />
 /// </summary>
 public class Worker
 {
     public Worker()
     {
-        Status = WorkerStatus.Ready;
         Id = Guid.NewGuid();
     }
 
-    public Work Work { get; set; }
-
-    internal WorkerStatus Status
-    {
-        get;
-        set;
-    }
+    public Work? Work { get; set; }
 
     public Guid Id
     {
@@ -35,19 +29,23 @@ public class Worker
         return true;
     }
 
-    public void StartWork()
+    public async Task StartWork()
     {
         if (Work == null)
         {
             throw new WorkException($"No work assigned to worker {Id}");
         }
 
-        Status = WorkerStatus.Working;
-        Work.DoWork();
+        await Work.DoWork(new CancellationToken());
     }
 
     public void StopWork()
     {
-        Status = WorkerStatus.Stopped;
+        if (Work == null)
+        {
+            throw new WorkException($"No work assigned to worker {Id}");
+        }
+
+        Work.StopWork();
     }
 }

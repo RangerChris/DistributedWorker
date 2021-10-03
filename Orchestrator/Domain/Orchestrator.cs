@@ -33,20 +33,25 @@ public class Orchestrator
         worker.SetWork(work);
     }
 
-    public void StartWork(Worker worker)
+    public async Task StartWork(Worker worker)
     {
         Guard.Against.Null(worker, nameof(worker));
         CheckWorkerIsKnownByOrchestrator(worker);
 
-        worker.StartWork();
+        await worker.StartWork();
     }
 
-    public WorkerStatus GetStatus(Worker worker)
+    public WorkStatus GetStatus(Worker worker)
     {
         Guard.Against.Null(worker, nameof(worker));
         CheckWorkerIsKnownByOrchestrator(worker);
 
-        return worker.Status;
+        if (worker.Work == null)
+        {
+            return WorkStatus.Failed;
+        }
+
+        return worker.Work.Status;
     }
 
     private void CheckWorkerIsKnownByOrchestrator(Worker worker)

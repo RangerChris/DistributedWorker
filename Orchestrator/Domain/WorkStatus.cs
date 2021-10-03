@@ -1,6 +1,6 @@
 ﻿namespace DistributedWorker.Core.Domain;
 
-public enum WorkerStatus
+public enum WorkStatus
 {
     Ready,
     Working,
