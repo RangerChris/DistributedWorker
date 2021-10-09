@@ -10,10 +10,11 @@ public class Orchestrator
 {
     public Orchestrator()
     {
+        Id = Guid.NewGuid();
         Workers = new List<Worker>();
     }
 
-    public List<Worker> Workers
+    protected List<Worker> Workers
     {
         get;
     }
@@ -68,5 +69,33 @@ public class Orchestrator
         CheckWorkerIsKnownByOrchestrator(worker);
 
         worker.StopWork();
+    }
+
+    public Worker CreateWorker()
+    {
+        var newWorker = new Worker
+        {
+            Name = $"Worker-{Workers.Count + 1}"
+        };
+        Workers.Add(newWorker);
+        return newWorker;
+    }
+
+    public Worker GetNextAvailableWorker()
+    {
+        foreach (var worker in Workers)
+        {
+            if (worker.IsReadyForWork())
+            {
+                return worker;
+            }
+        }
+
+        return null;
+    }
+
+    public bool RemoveWorker(Worker worker)
+    {
+        return Workers.Remove(worker);
     }
 }

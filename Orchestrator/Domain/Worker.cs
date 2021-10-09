@@ -12,6 +12,7 @@ public class Worker
     public Worker()
     {
         Id = Guid.NewGuid();
+        Name = "";
     }
 
     public Work? Work { get; set; }
@@ -19,6 +20,12 @@ public class Worker
     public Guid Id
     {
         get;
+    }
+
+    public string Name
+    {
+        get;
+        set;
     }
 
     public bool SetWork(Work work)
@@ -36,6 +43,8 @@ public class Worker
             throw new WorkException($"No work assigned to worker {Id}");
         }
 
+        Work.CheckIfValid();
+
         await Work.DoWork(new CancellationToken());
     }
 
@@ -47,5 +56,15 @@ public class Worker
         }
 
         Work.StopWork();
+    }
+
+    public bool IsReadyForWork()
+    {
+        if (Work == null || Work.Status == WorkStatus.Finished)
+        {
+            return true;
+        }
+
+        return false;
     }
 }

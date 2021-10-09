@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Bogus;
 using DistributedWorker.Core.Domain;
 using DistributedWorker.Core.Exception;
 using FluentAssertions;
@@ -12,47 +11,24 @@ namespace DistributedWorker.Core.Tests;
 public class OrchestratorRequirements
 {
     private readonly Orchestrator _orchestrator;
-    private readonly Work _work;
-    private readonly Worker _worker;
+    private readonly WorkBuilder _workBuilder;
 
     public OrchestratorRequirements()
     {
-        _orchestrator = new Faker<Orchestrator>().RuleFor(p => p.Id, Guid.NewGuid())
-                                                 .Generate();
-        _work = new Faker<Work>().RuleFor(p => p.Id, Guid.NewGuid())
-                                 .RuleFor(p => p.Name, $"Work-{_orchestrator.Workers.Count + 1}")
-                                 .Generate();
-        _worker = new Faker<Worker>().RuleFor(p => p.Id, Guid.NewGuid())
-                                     .Generate();
-
-        _orchestrator.Id.Should()
-                     .NotBeEmpty();
-        _worker.Id.Should()
-               .NotBeEmpty();
-        _work.Id.Should()
-             .NotBeEmpty();
+        _orchestrator = new Orchestrator();
+        _workBuilder = new WorkBuilder();
     }
-
 
     [Fact]
     public void OrchestratorCanAssignWorkToWorker()
     {
-        _orchestrator.Workers.Add(_worker);
-        _orchestrator.AssignWorkToWorker(_worker, _work);
-        _worker.Work.Should()
-               .BeSameAs(_work);
-
-        if (_worker.Work != null)
-        {
-            _worker.Work.WorkStartedAt.Should()
-                   .Be(DateTime.MinValue);
-            _worker.Work.TimeLimit.Should()
-                   .Be(DateTime.MinValue);
-            _worker.Work.Id.Should()
-                   .NotBeEmpty();
-            _worker.Work.Name.Should()
-                   .Be("Work-1");
-        }
+        var worker = _orchestrator.CreateWorker();
+        var work = _workBuilder.CreateWork(1, false)
+                               .Build()
+                               .First();
+        _orchestrator.AssignWorkToWorker(worker, work);
+        worker.Work.Should()
+              .BeSameAs(work);
     }
 
     [Theory]
@@ -62,89 +38,65 @@ public class OrchestratorRequirements
     [InlineData(62)]
     public void OrchestratorAddRangeOfWorkers(int numberOfWorkers)
     {
-        var fakeWorker = new Faker<Worker>().RuleFor(p => p.Id, Guid.NewGuid());
-        var workerList = fakeWorker.Generate(numberOfWorkers);
-        _orchestrator.Workers.AddRange(workerList);
-        _orchestrator.Workers.Should()
-                     .HaveCount(numberOfWorkers);
+        var workerList = _workBuilder.CreateWork(numberOfWorkers, false)
+                                     .Build();
+        workerList.Should()
+                  .HaveCount(numberOfWorkers);
     }
 
     [Fact]
     public void OrchestratorAddRemoveGetWorker()
     {
-        _orchestrator.Workers.Add(_worker);
+        _orchestrator.CreateWorker();
+        var retrievedWorker = _orchestrator.GetNextAvailableWorker();
+        var removeSuccess = _orchestrator.RemoveWorker(retrievedWorker);
+        removeSuccess.Should()
+                     .BeTrue();
+    }
 
-        _orchestrator.Workers.Should()
-                     .HaveCount(1);
-
-        var retrievedWorker = _orchestrator.Workers.First();
-        retrievedWorker.Should()
-                       .BeSameAs(_worker);
-
-        _orchestrator.Workers.Remove(retrievedWorker);
-        _orchestrator.Workers.Should()
-                     .BeEmpty();
+    [Fact]
+    public void OrchestratorCanCreateWorker()
+    {
+        var worker = _orchestrator.CreateWorker();
+        worker.Id.Should()
+              .NotBeEmpty();
+        worker.Name.Should()
+              .Be("Worker-1");
     }
 
     [Fact]
     public async Task OrchestratorCanStartStopWorker()
     {
+        var worker = _orchestrator.CreateWorker();
+        var work = _workBuilder.CreateWork(1, false)
+                               .Build()
+                               .First();
         Func<Task> asyncCall = async () =>
         {
-            await _orchestrator.StartWork(_worker);
-        };
-        // Throw exception because the worker is not added to list of workers known by orchestrator
-        await asyncCall.Should()
-                       .ThrowAsync<WorkerException>();
-
-        _orchestrator.Workers.Add(_worker);
-
-        asyncCall = async () =>
-        {
-            await _orchestrator.StartWork(_worker);
+            await _orchestrator.StartWork(worker);
         };
 
         // Throw exception because the worker have not had any work assigned to it
         await asyncCall.Should()
                        .ThrowAsync<WorkException>();
 
-        _orchestrator.AssignWorkToWorker(_worker, _work);
-        _worker.Work.Should()
-               .BeSameAs(_work);
+        _orchestrator.AssignWorkToWorker(worker, work);
+        worker.Work.Should()
+              .BeSameAs(work);
 
-        _work.WorkDuration = 5;
-        _work.TimeLimit = DateTime.Now.AddSeconds(10);
+        work.WorkDuration = 5;
+        work.TimeLimit = new TimeSpan(0, 0, 0, 10);
 
-        _orchestrator.StartWork(_worker)
+        _orchestrator.StartWork(worker)
                      .FireAndForget();
 
-        _orchestrator.GetStatus(_worker)
+        _orchestrator.GetStatus(worker)
                      .Should()
                      .Be(WorkStatus.Working);
 
-        _orchestrator.StopWork(_worker);
-        _orchestrator.GetStatus(_worker)
+        _orchestrator.StopWork(worker);
+        _orchestrator.GetStatus(worker)
                      .Should()
                      .Be(WorkStatus.Stopped);
-    }
-
-    [Fact]
-    public async Task WorkerCanSetWorkTimeButOnlyInFuture()
-    {
-        _orchestrator.Workers.Add(_worker);
-        Action action = () => _work.TimeLimit = DateTime.Now.AddHours(-1);
-        action.Should()
-              .Throw<WorkException>();
-
-        var timeLimit = DateTime.Now.AddHours(1);
-        _work.TimeLimit = timeLimit;
-
-        _orchestrator.AssignWorkToWorker(_worker, _work);
-        await _orchestrator.StartWork(_worker);
-
-        _work.TimeLimit.Should()
-             .Be(timeLimit);
-        _work.WorkStartedAt.Should()
-             .BeCloseTo(DateTime.Now, TimeSpan.FromSeconds(5));
     }
 }

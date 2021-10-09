@@ -3,17 +3,19 @@
 namespace DistributedWorker.Core.Domain;
 
 /// <summary>
-///     Represents a work task that have been issued by a <see cref="Worker" />
+///     Represents a work task that is to be consumed by a <see cref="Worker" />
+///     The work have a 5 second time limit, but can be changed at any time.
 /// </summary>
 public class Work : IWork
 {
     private readonly CancellationTokenSource _cancellationTokenSource = new();
-    private DateTime _timeLimit;
 
     public Work()
     {
+        Id = Guid.NewGuid();
         Status = WorkStatus.Ready;
         Name = "";
+        TimeLimit = new TimeSpan(0, 0, 0, 5);
     }
 
     public Guid Id { get; set; }
@@ -25,22 +27,12 @@ public class Work : IWork
     }
 
     /// <summary>
-    ///     Definition of when the work should be done.
-    ///     The work will fail if not done within the time limit
+    ///     How many seconds is set aside to finish the work
     /// </summary>
-    public DateTime TimeLimit
+    public TimeSpan TimeLimit
     {
-        get =>
-            _timeLimit;
-        set
-        {
-            if (value < DateTime.Now)
-            {
-                throw new WorkException("The time limit for the work must be in the future");
-            }
-
-            _timeLimit = value;
-        }
+        get;
+        set;
     }
 
     public DateTime WorkStartedAt { get; set; }
@@ -68,7 +60,7 @@ public class Work : IWork
                 // Check for cancel
                 cancellationToken.ThrowIfCancellationRequested();
                 // Check if we're over time limit
-                if (DateTime.Now > TimeLimit)
+                if (IsTimeLimitReached())
                 {
                     _cancellationTokenSource.Cancel();
                 }
@@ -83,9 +75,28 @@ public class Work : IWork
         Status = WorkStatus.Finished;
     }
 
+    private bool IsTimeLimitReached()
+    {
+        var result = DateTime.Now > WorkStartedAt.Add(TimeLimit);
+        return result;
+    }
+
     public void StopWork()
     {
         _cancellationTokenSource.Cancel();
         Status = WorkStatus.Stopped;
+    }
+
+    public void CheckIfValid()
+    {
+        if (WorkStartedAt != DateTime.MinValue && Status != WorkStatus.Ready)
+        {
+            throw new WorkException($"{nameof(WorkStartedAt)} is not set to {DateTime.MinValue} and is not in ready state. State is {Status}");
+        }
+
+        if (Id == Guid.Empty)
+        {
+            throw new WorkException($"{nameof(Id)} is not set");
+        }
     }
 }
