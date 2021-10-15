@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using Ardalis.GuardClauses;
 using DistributedWorker.Core.Domain;
 
-namespace DistributedWorker.Core.Tests;
+namespace DistributedWorker.Core.Factory;
 
 public class WorkBuilder
 {
@@ -9,6 +9,8 @@ public class WorkBuilder
 
     public WorkBuilder CreateWork(int numberOfWorkers, bool canFail)
     {
+        Guard.Against.NegativeOrZero(numberOfWorkers, nameof(numberOfWorkers));
+
         for (var i = 0; i < numberOfWorkers; i++)
         {
             var work = new Work();

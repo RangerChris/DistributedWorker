@@ -28,12 +28,11 @@ public class Worker
         set;
     }
 
-    public bool SetWork(Work work)
+    public void SetWork(Work work)
     {
         Guard.Against.Null(work, nameof(work));
-
         Work = work;
-        return true;
+        work.Status = WorkStatus.Ready;
     }
 
     public async Task StartWork()
@@ -60,7 +59,7 @@ public class Worker
 
     public bool IsReadyForWork()
     {
-        if (Work == null || Work.Status == WorkStatus.Finished)
+        if (Work == null || Work.Status == WorkStatus.Finished || Work.Status == WorkStatus.Ready)
         {
             return true;
         }

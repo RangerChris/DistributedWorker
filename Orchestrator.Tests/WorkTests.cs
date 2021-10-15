@@ -1,6 +1,6 @@
 ﻿using System;
-using Bogus;
 using DistributedWorker.Core.Domain;
+using DistributedWorker.Core.Exception;
 using FluentAssertions;
 using Xunit;
 
@@ -8,7 +8,27 @@ namespace DistributedWorker.Core.Tests
 {
     public class WorkTests
     {
-        private readonly Faker _faker = new();
+        [Fact]
+        public void WorkBasic()
+        {
+            var work = new Work();
+            work.CheckIfValid();
+
+            work.Id = Guid.Empty;
+
+            Assert.Throws<WorkException>(() =>
+            {
+                work.CheckIfValid();
+            });
+
+            work.Id = Guid.NewGuid();
+            work.Status = WorkStatus.Failed;
+
+            Assert.Throws<WorkException>(() =>
+            {
+                work.CheckIfValid();
+            });
+        }
 
         [Fact]
         public async void WorkThatFails()
@@ -40,16 +60,6 @@ namespace DistributedWorker.Core.Tests
             await worker.StartWork();
             work.Status.Should()
                 .Be(WorkStatus.Finished);
-        }
-
-        [Fact]
-        public void UseWorkFactoryToCreateWork()
-        {
-            var sut = new WorkBuilder().CreateWork(10, false)
-                                       .Build();
-
-            sut.Count.Should()
-               .Be(10);
         }
     }
 }

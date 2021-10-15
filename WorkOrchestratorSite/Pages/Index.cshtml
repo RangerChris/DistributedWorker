@@ -1,10 +1,58 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Distributed worker";
 }
 
 <div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <h1 class="display-4">Distributed worker</h1>
+    <p></p>
+
+    <form method="post">
+        <div class="row">
+            <div class="col-2">
+                <label class="form-label" asp-for="ViewModel.NumberOfWorkers"></label>
+            </div>
+            <div class="col-2">
+                <input type="number" placeholder="1" class="form-control" asp-for="ViewModel.NumberOfWorkers" />
+            </div>
+            <div class="col-2">
+                <button type="submit" id="workerButton" class="btn btn-primary form-control col-sm-2">Create worker(s)</button>
+            </div>
+        </div>
+
+        <div class="row">
+            &nbsp;
+        </div>
+
+        <div class="row">
+            <div class="col-2">
+                <label class="form-label" asp-for="ViewModel.NumberOfWork"></label>
+            </div>
+            <div class="col-2">
+                <input type="number" placeholder="1" class="form-control col-sm-2" asp-for="ViewModel.NumberOfWork" />
+                <input class="form-check-input" type="checkbox" asp-for="ViewModel.CanFail">
+                <label class="form-check-label" asp-for="ViewModel.CanFail">
+                    Has failing tests
+                </label>
+            </div>
+            <div class="col-2">
+                <button type="submit" id="creatework" class="btn btn-primary form-control col-sm-2">Create work</button>
+            </div>
+        </div>
+        
+        <hr/>
+        <h2>Workers (@Model.ViewModel.Orchestrator.NumberOfWorkers)</h2>
+        @foreach (var worker in Model.ViewModel.Orchestrator.GetWorkerList())
+        {
+            <div>@worker?.Name</div>
+        }
+        
+        <hr/>
+        <h2>Work (@Model.ViewModel.Orchestrator.WorkQueueSize)</h2>
+        @foreach (var work in Model.ViewModel.Orchestrator.GetWorkList())
+        {
+            <div>@work.Name</div>
+        }
+    </form>
 </div>

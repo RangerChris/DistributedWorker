@@ -48,6 +48,12 @@ public class Work : IWork
         set;
     }
 
+    public WorkPriorityEnum Priority
+    {
+        get;
+        set;
+    }
+
     public async Task DoWork(CancellationToken cancellationToken)
     {
         WorkStartedAt = DateTime.Now;
@@ -89,7 +95,7 @@ public class Work : IWork
 
     public void CheckIfValid()
     {
-        if (WorkStartedAt != DateTime.MinValue && Status != WorkStatus.Ready)
+        if (WorkStartedAt != DateTime.MinValue || Status != WorkStatus.Ready)
         {
             throw new WorkException($"{nameof(WorkStartedAt)} is not set to {DateTime.MinValue} and is not in ready state. State is {Status}");
         }
@@ -99,4 +105,11 @@ public class Work : IWork
             throw new WorkException($"{nameof(Id)} is not set");
         }
     }
+}
+
+public enum WorkPriorityEnum
+{
+    High,
+    Medium,
+    Low
 }

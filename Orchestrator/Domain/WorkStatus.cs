@@ -3,6 +3,7 @@
 public enum WorkStatus
 {
     Ready,
+    NotReady,
     Working,
     Stopped,
     Finished,

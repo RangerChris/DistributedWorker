@@ -1,4 +1,9 @@
+using DistributedWorker.Core.Domain;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Dependency injection
+builder.Services.AddSingleton(new Orchestrator());
 
 // Add services to the container.
 builder.Services.AddRazorPages();
